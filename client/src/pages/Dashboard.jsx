@@ -1,19 +1,16 @@
-import { useState } from "react";
 import ContactList from "../components/Dashboard/ContactList";
 import Sidebar from "../components/Dashboard/Sidebar";
 import UserStatus from "../components/Dashboard/UserStatus";
 import ChatArea from "../components/Chat/ChatArea";
+import { useChatStore } from "../stores/chatStore"; // Import Zustand store
 
 const Dashboard = () => {
-  const [activeSection, setActiveSection] = useState("chats");
+  const currentUser = useChatStore((state) => state.currentUser); // Get user from Zustand store
 
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <Sidebar
-        activeSection={activeSection}
-        setActiveSection={setActiveSection}
-      />
+      <Sidebar />
 
       {/* Main Content */}
       <div className="flex flex-col flex-grow p-6 space-y-4">
@@ -37,7 +34,7 @@ const Dashboard = () => {
 
         {/* Chat Area */}
         <div className="flex-grow bg-white shadow-md rounded-lg p-4">
-          <ChatArea />
+          <ChatArea user={currentUser} />
         </div>
       </div>
     </div>

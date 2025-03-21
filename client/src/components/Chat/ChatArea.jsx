@@ -76,20 +76,16 @@ const ChatArea = ({ user }) => {
   }, []); // Empty dependency array to run only once on mount
 
   const sendMessage = (content) => {
-    if (connectionStatus !== "connected") {
-      console.warn("Cannot send message: socket not connected");
+    if (!user || !user.username) {
+      console.warn("User is undefined, cannot send message");
       return;
     }
     
     const newMessage = { sender: user.username, content, timestamp: new Date().toISOString() };
-    
-    try {
-      socketRef.current.emit("sendMessage", newMessage);
-      setMessages((prev) => [...prev, newMessage]);
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
+    socketRef.current.emit("sendMessage", newMessage);
+    setMessages((prev) => [...prev, newMessage]);
   };
+  
 
   return (
     <div className="flex flex-col h-full bg-white shadow-md rounded-lg">

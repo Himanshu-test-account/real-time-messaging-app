@@ -1,15 +1,35 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useChatStore } from "../../stores/chatStore";
 
 const ChatInput = ({ socket, onSend, disabled = false }) => {
   const [message, setMessage] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const typingTimeoutRef = useRef(null);
+  const textareaRef = useRef(null);
+  
+  // Auto-focus the input when it mounts
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, []);
+  
+  // Clean up typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        handleStopTyping();
+      }
+    };
+  }, []);
 
   const handleSend = () => {
     if (message.trim()) {
-      onSend(message);
+      onSend(message.trim());
       setMessage("");
       setIsExpanded(false);
+      handleStopTyping();
     }
   };
 
@@ -17,21 +37,48 @@ const ChatInput = ({ socket, onSend, disabled = false }) => {
     if (socket && socket.connected) {
       try {
         socket.emit("userTyping");
+        
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => {
-          socket.emit("userStoppedTyping");
+          handleStopTyping();
         }, 2000);
       } catch (error) {
         console.error("Error emitting typing event:", error);
       }
     }
   };
+  
+  const handleStopTyping = () => {
+    if (socket && socket.connected) {
+      try {
+        socket.emit("userStoppedTyping");
+      } catch (error) {
+        console.error("Error stopping typing event:", error);
+      }
+    }
+  };
 
   const handleKeyDown = (e) => {
     if (message.trim()) handleTyping();
+    
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+    
+    // Toggle expanded mode with Shift+ArrowDown or Shift+ArrowUp
+    if (e.shiftKey && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      setIsExpanded(prev => !prev);
+    }
+  };
+  
+  const handleChange = (e) => {
+    setMessage(e.target.value);
+    
+    // Auto expand if text gets longer
+    if (e.target.value.length > 80 && !isExpanded) {
+      setIsExpanded(true);
     }
   };
 
@@ -40,6 +87,7 @@ const ChatInput = ({ socket, onSend, disabled = false }) => {
       <div className={`flex items-center gap-3 ${isExpanded ? "mb-2" : ""}`}>
         <div className="relative flex-1">
           <textarea
+            ref={textareaRef}
             className={`w-full py-3 px-4 bg-white border border-gray-300 rounded-3xl outline-none transition-all duration-200 resize-none shadow-md text-gray-800 ${
               disabled
                 ? "opacity-60 cursor-not-allowed"
@@ -47,8 +95,11 @@ const ChatInput = ({ socket, onSend, disabled = false }) => {
             }`}
             placeholder={disabled ? "Connection lost. Reconnecting..." : "Type a message..."}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleChange}
             onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (message.length > 80) setIsExpanded(true);
+            }}
             rows={isExpanded ? 3 : 1}
             style={{ minHeight: isExpanded ? "80px" : "50px" }}
             disabled={disabled}
@@ -79,14 +130,27 @@ const ChatInput = ({ socket, onSend, disabled = false }) => {
       {isExpanded && !disabled && (
         <div className="flex items-center justify-between px-3">
           <div className="flex gap-2">
-            <button className="p-2 text-gray-100 hover:text-white transition-colors duration-200" aria-label="Add attachment">
-              📎
-            </button>
-            <button className="p-2 text-gray-100 hover:text-white transition-colors duration-200" aria-label="Add emoji">
+            <button 
+              className="p-2 text-gray-100 hover:text-white transition-colors duration-200" 
+              aria-label="Add emoji"
+              onClick={() => {
+                // This would normally open an emoji picker
+                setMessage(prev => prev + "😊");
+              }}
+            >
               😊
             </button>
+            <button 
+              className="p-2 text-gray-100 hover:text-white transition-colors duration-200" 
+              aria-label="Collapse input"
+              onClick={() => setIsExpanded(false)}
+            >
+              ▲
+            </button>
           </div>
-          <div className="text-xs text-gray-200">Press Shift+Enter for a new line</div>
+          <div className="text-xs text-gray-200">
+            Press Shift+Enter for a new line • Shift+↑/↓ to resize
+          </div>
         </div>
       )}
     </div>

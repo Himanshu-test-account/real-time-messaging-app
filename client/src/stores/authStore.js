@@ -146,6 +146,12 @@ export const useAuthStore = create((set, get) => ({
       });
     }
   },
+
+  updateUser: (updatedData) => {
+    set((state) => ({
+      user: { ...state.user, ...updatedData },
+    }));
+  },
   
   // ✅ Refresh Token
   refreshToken: async () => {
